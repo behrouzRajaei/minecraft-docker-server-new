@@ -1,0 +1,14 @@
+# Environment variables
+.env
+
+# Minecraft server data
+world/
+logs/
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Docker
+*.log

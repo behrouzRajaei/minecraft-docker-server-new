@@ -10,10 +10,10 @@ The project is designed to run a Minecraft server inside a Docker container **wi
 3. [Quickstart](#3-quickstart)
 4. [Usage](#4-usage)
 5. [Security & Secrets](#5-security--secrets)
-6. [Entrypoint Script](#6-entrypoint-script)
+6. [Entrypoint & Startup Logic](#6-Entrypoint--Startup-Logic)
 7. [Customization & Mods](#7-customization--mods)
-8. [Contributing](#8-contributing)
-9. [Notes](#9-notes)
+8. [Troubleshooting & Logs](#8-Troubleshooting--Logs)
+9. [Notes & Design Decisions](#9-Notes--Design-Decisions)
 10. [License](#10-license)
 
 # Instructure
@@ -34,9 +34,8 @@ To provide a clean, reproducible, and automated way to deploy a Minecraft server
 
 - Docker
 - Docker Compose
-- A Cloud VM or local machine
-- Port **8888** must be open on your machine/firewall
-- Java installed locally for optional testing
+- Internet connection
+- Open port **8888** on firewall or cloud provider
 
 ---
 ## 3. Quickstart
@@ -44,21 +43,31 @@ To provide a clean, reproducible, and automated way to deploy a Minecraft server
 1. Clone the repository:
 
 ```bash
-git clone <YOUR_REPOSITORY_URL>
-cd minecraft-docker-server
+git clone https://github.com/<YOUR_USERNAME>/<REPO_NAME>.git
+cd <REPO_NAME>
 ```
-2. Build and Start the server:
+2. Create environment file:
 
 ```bash
-docker-compose down
+cp .env.example .env
+```
+Edit the .env file and adjust the values if needed.
+
+3. Start the Minecraft server:
+
+```bash
 docker-compose up -d --build
 ```
-3. Verify the container is running:
+4. Verify the container is running:
 
 ```bash
 docker ps
 ```
-4. (Optional) Connect with a Minecraft Java Edition client to <IP-server>:8888
+5. Connect from Minecraft Java Edition:
+
+```
+<SERVER_IP>:8888
+```
 
 ![test_connect](./images/test_connect.png)
 
@@ -66,25 +75,55 @@ docker ps
 
 ## 4. Usage
 
-### Environment variables
+### Environment configuration
 
-Configured in `docker-compose.yaml`:
+All configuration values are defined in a `.env` file and injected into the container
+via Docker Compose.
 
-| Variable        | Description          |
-|-----------------|----------------------|
-| MINECRAFT_PORT  | Internal server port |
-| MEMORY_MIN      | Minimum Java memory  |
-| MEMORY_MAX      | Maximum Java memory  |
+The following variables control the Minecraft server behavior:
 
-> These variables can be adjusted to optimize server performance.
+| Variable       | Description                          |
+|----------------|--------------------------------------|
+| EULA           | Accept Minecraft EULA (true/false)   |
+| VERSION        | Minecraft server version             |
+| MEMORY         | Maximum memory for the JVM           |
+| SERVER_PORT    | Internal Minecraft server port       |
+| MAX_PLAYERS    | Maximum number of players            |
+| DIFFICULTY     | Game difficulty                      |
+| ONLINE_MODE    | Enable or disable online mode        |
+
+These variables can be adjusted to tune performance and gameplay behavior.
+
+### Container lifecycle
+
+Start the server:
+
+```bash
+docker compose up -d
+```
+Check container status:
+```
+docker ps
+```
+View server logs:
+```
+docker logs -f mc-server
+```
+Stop the server:
+```
+docker compose down
+```
 
 ### Persistent data
 
-This project uses a named Docker volume:
+The Minecraft world data is stored in a named Docker volume:
 
+This ensures:
+- World data persists across container restarts
+- No direct bind mount from host to container is required
+- The container remains isolated from the host filesystem
 ```
-volumes:
-  - mc-data:/opt/minecraft
+mc-world:/opt/minecraft/world
 ```
 
 This ensures:
@@ -103,64 +142,102 @@ The container is configured to automatically restart if it crashes:
 restart: unless-stopped
 ```
 
+---
+
 ## 5. Security & Secrets
 
-- No credentials, passwords, or tokens are stored in the repository
-- Critical configuration (like passwords or tokens) should be provided via environment variables or a `.env` file, **not** committed in Git
-- Use **UPPER_CASE** naming for environment variables and build-args
-- Always reference variables with `${VAR_NAME}` to avoid interpretation errors
+- No credentials, passwords, or secrets are committed to this repository
+- Configuration is provided exclusively via environment variables
+- Sensitive values must be stored in a `.env` file (not committed)
+- The repository provides a `.env.example` file as a template
+- Hardcoded values inside `docker-compose.yaml` are avoided
+- `.env` is excluded via `.gitignore`
+- The `.env` file is intentionally excluded from version control and must not be committed.
 
-## 6. Entrypoint Script
+This approach prevents leaking sensitive configuration and follows container security best practices.
 
-- The `ENTRYPOINT` in Dockerfile ensures that the Minecraft server starts with the configured memory and environment variables every time the container runs.
-- It allows the server to restart automatically and read environment variables like `MEMORY_MIN`, `MEMORY_MAX`, and `MINECRAFT_PORT`.
+## 6. Entrypoint & Startup Logic
 
-### Example:
+The container uses a custom `ENTRYPOINT` defined in the Dockerfile to start the Minecraft server.
+
+The entrypoint is responsible for:
+- Launching the Fabric Minecraft server
+- Applying JVM memory limits
+- Running the server in headless mode (`nogui`)
+
+### Entrypoint command
 
 ```dockerfile
-ENTRYPOINT ["bash", "-c", "java -Xms${MEMORY_MIN} -Xmx${MEMORY_MAX} -jar server.jar nogui"]
+ENTRYPOINT ["bash","-c","java -Xms${MEMORY_MIN} -Xmx${MEMORY_MAX} -jar fabric-server-launch.jar nogui"]
 ```
+This approach ensures:
+- Consistent startup behavior
+- Environment-based configuration
+- Automatic restart support via Docker Compose
 
 ## 7. Customization & Mods
 
-- Server properties can be edited in `server.properties` inside the volume
-- Mods are installed in the `mods/` folder using Fabric Loader
+This server uses **Fabric** as the mod loader.
 
-### Installed Mods for this server
+### Installed mods
 
-| Mod Name                         | Version          | Source URL                                              |
-|----------------------------------|------------------|---------------------------------------------------------|
-| Fabric API                       | 0.138.3+1.21.10  | https://www.curseforge.com/minecraft/mc-mods/fabric-api |
-| Sodium Fabric                    | 0.7.3+mc1.21.10  | https://www.curseforge.com/minecraft/mc-mods/sodium     |
-| Lithium Fabric                   | 0.20.1+mc1.21.10 | https://www.curseforge.com/minecraft/mc-mods/lithium    |
+The following mods are included for customization and performance optimization:
 
-- World name: `behrouz_world`
-- Any changes to `server.properties` will be persisted across container restarts
+1. **Fabric API** – Core dependency for Fabric mods
+2. **Lithium** – Server-side performance optimization
+3. **Sodium** – Rendering optimization (mainly client-side, included for compatibility)
 
-## 8. Contributing
+All mods are stored inside the container at:
 
-We welcome contributions! Please follow these steps:
+```
+/opt/minecraft/mods
+```
 
-1. Fork the repository
-2. Create a feature branch for your changes
-3. Make your changes and commit with clear messages
-4. Submit a pull request describing the purpose of your changes
+### Mod management
 
-> Please ensure that no credentials, tokens, or sensitive data are included in your commits.
+- Mods are copied into the image during build time
+- Mods must match the Minecraft server version
+- Version mismatches may prevent the server from starting
 
-## 9. Notes
+To add or remove mods:
+1. Update the `mods/` directory
+2. Rebuild the image using `docker compose build`
 
-- No credentials, tokens, or sensitive data are stored in this repository
-- No pre-built Minecraft images are used; the server image is built entirely from scratch
-- The Minecraft server binary is downloaded directly from the official Mojang source
-- Optional testing can be done with a **Java Edition client** connecting to `<IP-server>:8888`
-- Persistent volumes ensure world data and configurations are preserved across container restarts
-- This repository provides a clean and reproducible setup for running a customized Minecraft server in Docker
-- Test the connection to own server
+## 8. Troubleshooting & Logs
+
+### View server logs
+
+To inspect the Minecraft server output:
+
+```bash
+docker logs -f mc-server
+```
+#### Common issues
+
+1. Server does not start
+- Check Java version and mod compatibility
+
+2. Client cannot connect
+- Ensure the client Minecraft version matches the server version
+- Confirm port 8888 is open and mapped correctly
+
+3. Mods not loading
+- Verify Fabric loader version
+- Check mod compatibility with the server version
+
+## 9. Notes & Design Decisions
+
+- No pre-built Minecraft Docker images are used
+- The image is built entirely from a base Ubuntu image
+- Only one persistent volume is used for the Minecraft world
+- No direct host filesystem access is required for server data
+- Configuration is handled via environment variables
+- The setup is designed to be reproducible and reviewable
 
 ## 10. License
 
 This project is licensed under the **MIT License**.
 See the [LICENSE](LICENSE) file for details.
+You are free to use, modify, and distribute this project for educational and personal purposes.
 
 > This README and repository are structured to provide a clean, technical, and professional setup for a Dockerized Minecraft server, suitable for GitHub or GitLab.
