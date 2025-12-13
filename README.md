@@ -22,9 +22,7 @@ The project is designed to run a Minecraft server inside a Docker container **wi
 
 ### Main components
 - **Dockerfile** → builds a custom Minecraft server image
-![Dockerfile_text](./images/Dockerfile.png)
 - **docker-compose.yaml** → manages the Minecraft server container
-![Docker-compose_text](./images/docker-compose.png)
 - **Persistent volume** → stores world data and configuration
 
 ### Main purpose
