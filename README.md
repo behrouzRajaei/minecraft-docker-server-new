@@ -41,10 +41,13 @@ To provide a clean, reproducible, and automated way to deploy a Minecraft server
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/<YOUR_USERNAME>/<REPO_NAME>.git
-cd <REPO_NAME>
+git clone https://github.com/USERNAME/minecraft-docker-server-new.git
+cd minecraft-docker-server-new
 ```
+
 2. Create environment file:
+
+Copy the example environment file and adjust values if needed:
 
 ```bash
 cp .env.example .env
@@ -61,11 +64,15 @@ docker-compose up -d --build
 ```bash
 docker ps
 ```
-5. Connect from Minecraft Java Edition:
+## 5. Connect from Minecraft Java Edition
 
-```
+Connect to the server using the IP address of the machine where Docker is running.
+
+**Server address:**
 <SERVER_IP>:8888
-```
+
+**Example (local setup):**
+localhost:8888
 
 ![test_connect](./images/test_connect.png)
 
@@ -80,15 +87,15 @@ via Docker Compose.
 
 The following variables control the Minecraft server behavior:
 
-| Variable       | Description                          |
-|----------------|--------------------------------------|
-| EULA           | Accept Minecraft EULA (true/false)   |
-| VERSION        | Minecraft server version             |
-| MEMORY         | Maximum memory for the JVM           |
-| SERVER_PORT    | Internal Minecraft server port       |
-| MAX_PLAYERS    | Maximum number of players            |
-| DIFFICULTY     | Game difficulty                      |
-| ONLINE_MODE    | Enable or disable online mode        |
+| Variable        | Default  | Description                    |
+|-----------------|----------|--------------------------------|
+| EULA            | true     | Accept Minecraft EULA          |
+| VERSION         | 1.21.1   | Minecraft server version       |
+| MEMORY          | 2G       | JVM memory limit               |
+| SERVER_PORT     | 25565    | Internal Minecraft port        |
+| MAX_PLAYERS     | 20       | Maximum number of players      |
+| DIFFICULTY      | normal   | Game difficulty                |
+| ONLINE_MODE     | true     | Enable online mode             |
 
 These variables can be adjusted to tune performance and gameplay behavior.
 
