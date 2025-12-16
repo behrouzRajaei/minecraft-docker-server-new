@@ -41,7 +41,7 @@ To provide a clean, reproducible, and automated way to deploy a Minecraft server
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/USERNAME/minecraft-docker-server-new.git
+git clone https://github.com/behrouzRajaei/minecraft-docker-server-new.git
 cd minecraft-docker-server-new
 ```
 
